@@ -1,3 +1,13 @@
+# Data files 
+**/*.dta
+**/*.rds
+
+# Data folder
+data/
+
+# Output folder
+output/
+
 # History files
 .Rhistory
 .Rapp.history
