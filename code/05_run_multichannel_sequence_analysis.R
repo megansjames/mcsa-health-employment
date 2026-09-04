@@ -149,7 +149,7 @@ gridplot(ssp_k,
 dev.off()
 
 
-##### Figure: State distribution plots for each cluster ####
+##### Additional Figure: State distribution plot by cluster ####
 
 # Reorder the clusters to be more informative and logical with cluster names
 new_labels <- c("Cluster 4", "Cluster 2", "Cluster 3", "Cluster 1") 
@@ -166,12 +166,12 @@ ssp_k[[1]] <- ssp(list(jb_seq[new_Cuts == 1,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 2: Healthy but inactive
+# Cluster 2: Precarious non-employment
 ssp_k[[2]] <- ssp(list(jb_seq[new_Cuts == 2,], 
                        srh_seq[new_Cuts == 2,]),
                   type = "d", border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 2: Healthy but inactive"), 
+                  title = paste0("Cluster 2: Precarious non-employment"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
@@ -186,12 +186,12 @@ ssp_k[[3]] <- ssp(list(jb_seq[new_Cuts == 3,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 4: Transition to retirement
+# Cluster 4: Rapid retirement
 ssp_k[[4]] <- ssp(list(jb_seq[new_Cuts == 4,], 
                        srh_seq[new_Cuts == 4,]),
                   type = "d", border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 4: Transition to retirement"), 
+                  title = paste0("Cluster 4: Rapid retirement"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
@@ -205,7 +205,7 @@ gridplot(ssp_k,
          title.legend = "auto")
 dev.off()
 
-##  Plots of each individual cluster for presentations ##
+##### Additional Figures: State distribution plots for each individual cluster #####
 
 # Cluster 1: Entering employment
 png("output/main/plot_distribution_cluster1.png", width = 900, height = 600, res = 125)
@@ -219,13 +219,13 @@ plot(ssp(list(jb_seq[new_Cuts == 1,],
     xtlab = 0:4))
 dev.off()
 
-# Cluster 2: Healthy but inactive
+# Cluster 2: Precarious non-employment
 png("output/main/plot_distribution_cluster2.png", width = 900, height = 600, res = 125)
 plot(ssp(list(jb_seq[new_Cuts == 2,], 
               srh_seq[new_Cuts == 2,]),
          type = "d", border = NA, 
          with.legend = TRUE, 
-         title = paste0("Cluster 2: Healthy but inactive"), 
+         title = paste0("Cluster 2: Precarious non-employment"), 
          ylab = c("Economic activity", "Self-rated health"),
          xlab = "Year since onset of long-term sickness", 
          xtlab = 0:4))
@@ -243,19 +243,19 @@ plot(ssp(list(jb_seq[new_Cuts == 3,],
          xtlab = 0:4))
 dev.off()
 
-# Cluster 4: Transition to retirement
+# Cluster 4: Rapid retirement
 png("output/main/plot_distribution_cluster4.png", width = 900, height = 600, res = 125)
 plot(ssp(list(jb_seq[new_Cuts == 4,], 
               srh_seq[new_Cuts == 4,]),
          type = "d", border = NA, 
          with.legend = TRUE, 
-         title = paste0("Cluster 4: Transition to retirement"), 
+         title = paste0("Cluster 4: Rapid retirement"), 
          ylab = c("Economic activity", "Self-rated health"),
          xlab = "Year since onset of long-term sickness", 
          xtlab = 0:4))
 dev.off()
 
-##### Appendix Figure: Sequence index plot by cluster #####
+##### Additional Figure: Sequence index plot by cluster #####
 
 # Cluster 1: Entering employment
 ssp_k[[1]] <- ssp(list(jb_seq[new_Cuts == 1,], 
@@ -268,13 +268,13 @@ ssp_k[[1]] <- ssp(list(jb_seq[new_Cuts == 1,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 2: Healthy but inactive
+# Cluster 2: Precarious non-employment
 ssp_k[[2]] <- ssp(list(jb_seq[new_Cuts == 2,], 
                        srh_seq[new_Cuts == 2,]),
                   type = "I", sortv = "from.start", sort.channel = 1,
                   border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 2: Healthy but inactive"), 
+                  title = paste0("Cluster 2: Precarious non-employment"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
@@ -290,13 +290,13 @@ ssp_k[[3]] <- ssp(list(jb_seq[new_Cuts == 3,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 4: Transition to retirement
+# Cluster 4: Rapid retirement
 ssp_k[[4]] <- ssp(list(jb_seq[new_Cuts == 4,], 
                        srh_seq[new_Cuts == 4,]),
                   type = "I", sortv = "from.start", sort.channel = 1, 
                   border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 4: Transition to retirement"), 
+                  title = paste0("Cluster 4: Rapid retirement"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
@@ -309,6 +309,133 @@ gridplot(ssp_k,
          cex.legend = 1, 
          title.legend = "auto")
 dev.off()
+
+
+
+##### Figure: State distribution and sequence index plots side-by-side by cluster #####
+
+# Create a master list to store all 8 plots (Distribution + Index each of the 4 clusters)
+ssp_side_by_side <- list()
+
+# Cluster 1: Entering employment
+ssp_side_by_side[[1]] <- ssp(list(jb_seq[new_Cuts == 1,], srh_seq[new_Cuts == 1,]),
+                             type = "d", 
+                             border = NA, with.legend = FALSE, 
+                             mar = c(4, 3.5, 1.2, 1),
+                             title = paste0("Cluster 1: Entering employment"), 
+                             ylab = c("Economic activity", "Self-rated health"),
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+ssp_side_by_side[[2]] <- ssp(list(jb_seq[new_Cuts == 1,], srh_seq[new_Cuts == 1,]),
+                             type = "I", sortv = "from.start", sort.channel = 1, 
+                             border = NA, with.legend = FALSE, 
+                             title.n = FALSE, title = paste0(" "), 
+                             ylab = FALSE,
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+
+# Cluster 2: Precarious non-employment
+ssp_side_by_side[[3]] <- ssp(list(jb_seq[new_Cuts == 2,], srh_seq[new_Cuts == 2,]),
+                             type = "d", 
+                             border = NA, with.legend = FALSE, 
+                             title = paste0("Cluster 2: Precarious non-employment"), 
+                             ylab = c("Economic activity", "Self-rated health"),
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+ssp_side_by_side[[4]] <- ssp(list(jb_seq[new_Cuts == 2,], srh_seq[new_Cuts == 2,]),
+                             type = "I", sortv = "from.start", sort.channel = 1, 
+                             border = NA, with.legend = FALSE, 
+                             title.n = FALSE, title = paste0(" "), 
+                             ylab = FALSE,
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+
+# Cluster 3: Continued long-term sickness
+ssp_side_by_side[[5]] <- ssp(list(jb_seq[new_Cuts == 3,], srh_seq[new_Cuts == 3,]),
+                             type = "d", 
+                             border = NA, with.legend = FALSE, 
+                             title = paste0("Cluster 3: Continued long-term sickness"), 
+                             ylab = c("Economic activity", "Self-rated health"),
+                             cex.lab=0.9, cex.axis=0.8, cex.title=1.1,
+                             xtlab = 0:4)
+
+ssp_side_by_side[[6]] <- ssp(list(jb_seq[new_Cuts == 3,], srh_seq[new_Cuts == 3,]),
+                             type = "I", sortv = "from.start", sort.channel = 1, 
+                             border = NA, with.legend = FALSE, 
+                             title.n = FALSE, title = paste0(" "), 
+                             ylab = FALSE,
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+
+# Cluster 4: Rapid retirement
+par(font.main = 2)
+ssp_side_by_side[[7]] <- ssp(list(jb_seq[new_Cuts == 4,], srh_seq[new_Cuts == 4,]),
+                             type = "d", 
+                             border = NA, with.legend = FALSE, 
+                             title = paste0("Cluster 4: Rapid retirement"), 
+                             ylab = c("Economic activity", "Self-rated health"),
+                             xlab = "Year since onset of long-term sickness", 
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+ssp_side_by_side[[8]] <- ssp(list(jb_seq[new_Cuts == 4,], srh_seq[new_Cuts == 4,]),
+                             type = "I", sortv = "from.start", sort.channel = 1, 
+                             border = NA, with.legend = FALSE, 
+                             title.n = FALSE, title = paste0("  "), 
+                             ylab = FALSE,
+                             xlab = "Year since onset of long-term sickness",
+                             cex.lab=0.9, cex.axis=0.9, cex.title=1.1,
+                             xtlab = 0:4)
+
+# Reorder plots to be column-wise (1:4 Distribution plots, 5:8 Index plots)
+ssp_column_wise <- list(
+  ssp_side_by_side[[1]], ssp_side_by_side[[3]], 
+  ssp_side_by_side[[5]], ssp_side_by_side[[7]], 
+  ssp_side_by_side[[2]], ssp_side_by_side[[4]], 
+  ssp_side_by_side[[6]], ssp_side_by_side[[8]]
+)
+
+
+# Function to make the titles starting with "Cluster" bold, leaving everything else untouched
+bold_cluster_titles <- function(label, ...) {
+  dots <- list(...)
+  if (is.character(label) && length(label) && grepl("^Cluster", label[1])) {
+    gp <- dots$gp; if (is.null(gp)) gp <- gpar()
+    gp$fontface <- "bold"; dots$gp <- gp
+  }
+  do.call(grid::grid.text, c(list(label), dots))
+}
+
+# Using the bold_cluster_titles() function in SSPlotter in seqHMM package for this plot
+trace(seqHMM:::SSPlotter,
+      tracer = bquote(grid.text <- .(bold_cluster_titles)),
+      print = FALSE, where = asNamespace("seqHMM"))
+
+
+# Export the plot
+png("output/main/plot_side_by_side_dist_index_4clusters_publication.png",
+    width = 6000, height = 8100, res = 470)
+
+gridplot(
+  ssp_column_wise,
+  ncol = 3, nrow = 4, byrow = FALSE,    # 4 rows x 3 columns (filled column-wise)
+  legend.pos = c(9, 9),                 # Legends in Cells 9 & 10 (top right column)
+  legend.pos2 = "center",
+  col.prop = c(0.44, 0.40, 0.16),
+  row.prop = c(0.25, 0.25, 0.25, 0.25),
+  cex.legend = 0.95,
+  title.legend = "auto"
+)
+
+dev.off()
+
+# Clean up untrace
+untrace(seqHMM:::SSPlotter, where = asNamespace("seqHMM"))
 
 
 #### 4. PREPROCESS FOR MULTINOMIAL LOGISTIC REGRESSION ####

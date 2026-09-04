@@ -346,7 +346,7 @@ seqHMM::gridplot(ssp_k,
                  title.legend = "auto")
 dev.off()
 
-##### Appendix Figure A3: State distribution plots for each cluster for IPAW and missing states #####
+##### Appendix Figure: State distribution plots for each cluster for IPAW and missing states #####
 
 # Reorder the clusters to be more informative and logical with cluster names
 new_labels <- c("Cluster 4", "Cluster 2", "Cluster 3", "Cluster 1") 
@@ -363,12 +363,12 @@ ssp_k[[1]] <- ssp(list(jb_seq[new_Cuts == 1,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 2: Healthy but inactive
+# Cluster 2: Precarious non-employment
 ssp_k[[2]] <- ssp(list(jb_seq[new_Cuts == 2,], 
                        srh_seq[new_Cuts == 2,]),
                   type = "d", border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 2: Healthy but inactive"), 
+                  title = paste0("Cluster 2: Precarious non-employment"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
@@ -383,12 +383,12 @@ ssp_k[[3]] <- ssp(list(jb_seq[new_Cuts == 3,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 4: Transition to retirement
+# Cluster 4: Rapid retirement
 ssp_k[[4]] <- ssp(list(jb_seq[new_Cuts == 4,], 
                        srh_seq[new_Cuts == 4,]),
                   type = "d", border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 4: Transition to retirement"), 
+                  title = paste0("Cluster 4: Rapid retirement"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)

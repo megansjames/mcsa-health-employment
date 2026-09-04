@@ -73,29 +73,9 @@ mean_sequence_sf12_complete <- sequence_sf12 %>%
   dplyr::summarize(mean_sf12pcs = mean(sf12pcs, na.rm=TRUE), 
                    mean_sf12mcs = mean(sf12mcs, na.rm=TRUE))
 
-##### Figure: Mean SF-12 over follow-up period, by cluster ####
 
-# Using theme_minimal()
-mean_sequence_sf12_complete %>% 
-  pivot_longer(cols = mean_sf12pcs:mean_sf12mcs, 
-               names_to = "type", 
-               values_to = "value") %>% 
-  ggplot(aes(x=transition_time, y=value, color = group)) + 
-  geom_line() + 
-  geom_point() + 
-  facet_wrap(~type, 
-             labeller = labeller(type = c("mean_sf12mcs" = "SF-12 MCS", "mean_sf12pcs" = "SF-12 PCS"))) + 
-  theme_minimal() + 
-  geom_vline(xintercept = 0, linetype = 2, color = "darkgrey") + 
-  geom_vline(xintercept = -1, linetype = 2, color = "darkgrey") + 
-  labs(y = "SF-12 Score", color = "Cluster", x = "Year since onset of long-term sickness", 
-       caption = "N = 811\nOnly those with complete SF-12 for all time-points") + 
-  scale_color_discrete(breaks = c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
-                       labels = c("Cluster 1: Entering employment", 
-                                  "Cluster 2: Healthy but inactive", 
-                                  "Cluster 3: Continued long-term sickness", 
-                                  "Cluster 4: Transition to retirement"))
-# Using theme_bw() 
+## Mean SF-12 over follow-up period, by cluster ##
+
 mean_sequence_sf12 %>% 
   pivot_longer(cols = mean_sf12pcs:mean_sf12mcs, 
                names_to = "type", 
@@ -113,9 +93,9 @@ mean_sequence_sf12 %>%
        caption = "N = 811\nOnly those with complete SF-12 for all time-points") + 
   scale_color_discrete(breaks = c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
                        labels = c("Cluster 1: Entering employment", 
-                                  "Cluster 2: Healthy but inactive", 
+                                  "Cluster 2: Precarious non-employment", 
                                   "Cluster 3: Continued long-term sickness", 
-                                  "Cluster 4: Transition to retirement")) 
+                                  "Cluster 4: Rapid retirement")) 
 
 ## Adding confidence intervals ##
 
@@ -134,7 +114,8 @@ summary_pcs <- sequence_sf12 %>% as.data.frame() %>%
 
 summary <- rbind(summary_mcs, summary_pcs)
 
-##### Figure: Mean SF-12 over follow-up period with 95% CIs, by cluster #####
+##### Additional Figure: Mean SF-12 over follow-up period with 95% CIs, by cluster #####
+
 sf12_plot <- ggplot(summary, aes(x=transition_time, y=sf12, colour=group)) + 
   geom_errorbar(aes(ymin=sf12-se, ymax=sf12+se), width=0.3) + 
   geom_line() + 
@@ -154,7 +135,6 @@ sf12_plot <- ggplot(summary, aes(x=transition_time, y=sf12, colour=group)) +
 png("output/extra/sf12_plot.png", width = 1211, height = 1000, res=200)
 sf12_plot
 dev.off()
-
 
 
 

@@ -389,7 +389,7 @@ for(SA in SAs) {
     }
 }
 
-# Plot of ASW statistics by sensitivity analysis for different MCSA specifications
+##### Appendix Figure: Plot of ASW statistics by sensitivity analysis for different MCSA specifications #####
 asw_plot <- cluster_stats_ASW %>% 
   ggplot(aes(x = X, y = ASW, color = SA)) + 
   geom_line() + 
@@ -487,7 +487,7 @@ attr(multi_seq, "labels") <- new_labels
 alphabet(multi_seq)
 
 
-# Plotting with a condensed legend
+##### Appendix Figure: Overall distribution plot for extended alphabet approach #####
 png(paste0("output/sensitivity/overall_dist_ea.png"), width = 6000, height = 5000, res=500)
 TraMineR::seqdplot(multi_seq, 
                    border = NA, 
@@ -496,7 +496,7 @@ TraMineR::seqdplot(multi_seq,
                    xlab = "Year since onset of long-term sickness") # Give the legend more room
 dev.off()
 
-# Compute transition matrix and save
+##### Appendix Table: Transition matrix for extended alphabet approach #####
 tr_ea_matrix <- seqtrate(multi_seq)
 write.csv(x = round(tr_ea_matrix, 3), file = paste0("output/sensitivity/transition_matrix_ea.csv"))
 
@@ -526,12 +526,11 @@ dev.off()
 Cuts <- cutree(Clustered, k = 4)
 Groups <- factor(Cuts, labels = paste("Cluster", 1:4))
 
-
 # Reorder the clusters to be more informative and logical with cluster names
 new_labels <- c("Cluster 4", "Cluster 2", "Cluster 3", "Cluster 1") 
 new_Groups <- factor(Groups, levels = paste("Cluster", 1:4), labels = new_labels)
 new_Cuts <- as.numeric(gsub("Cluster", "", new_Groups))
-new_Groups_labelled <- factor(new_Cuts, labels = c("Cluster 1: Entering employment", "Cluster 2: Healthy but inactive", "Cluster 3: Continued long-term sickness", "Cluster 4: Transition to retirement"))
+new_Groups_labelled <- factor(new_Cuts, labels = c("Cluster 1: Entering employment", "Cluster 2: Precarious non-employment", "Cluster 3: Continued long-term sickness", "Cluster 4: Rapid retirement"))
 
 
 # Plot using the extended alphabet approach
@@ -543,7 +542,7 @@ TraMineR::seqdplot(multi_seq,
                    cex.legend =0.8,
                    ncol = 6) 
 
-# Save publication-quality plot
+##### Appendix Figure: Distribution plot by cluster for extended alphabet approach #####
 png(paste0("output/sensitivity/plot_4clusters_extended_alphabet_combined_states_publication.png"), width = 5000, height = 5000, res=500)
 TraMineR::seqdplot(multi_seq, 
                    border = NA, 
@@ -754,7 +753,7 @@ cluster_comp <- full_join(sample_baseline_main, sample_baseline_ea_only)
 cluster_comp_table <- table(cluster_comp$cluster_ea_only, cluster_comp$cluster_main)
 write.csv(x = cluster_comp_table, file = paste0("output/sensitivity/cluster_comp_ea_only_main_table.csv"))
 
-### Appendix Figure ??: Sequence distribution plots for each cluster for economically active only sample ###
+##### Appendix Figure: Sequence distribution plots for each cluster for economically active only sample #####
 
 # Reorder the clusters to be more informative and logical with cluster names
 
@@ -768,12 +767,12 @@ ssp_k[[1]] <- ssp(list(jb_seq[new_Cuts == 1,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 2: Healthy but inactive
+# Cluster 2: Precarious non-employment
 ssp_k[[2]] <- ssp(list(jb_seq[new_Cuts == 2,], 
                        srh_seq[new_Cuts == 2,]),
                   type = "d", border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 2: Healthy but inactive"), 
+                  title = paste0("Cluster 2: Precarious non-employment"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
@@ -788,12 +787,12 @@ ssp_k[[3]] <- ssp(list(jb_seq[new_Cuts == 3,],
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
 
-# Cluster 4: Transition to retirement
+# Cluster 4: Rapid retirement
 ssp_k[[4]] <- ssp(list(jb_seq[new_Cuts == 4,], 
                        srh_seq[new_Cuts == 4,]),
                   type = "d", border = NA, 
                   with.legend = FALSE, 
-                  title = paste0("Cluster 4: Transition to retirement"), 
+                  title = paste0("Cluster 4: Rapid retirement"), 
                   ylab = c("Economic activity", "Self-rated health"),
                   xlab = "Year since onset of long-term sickness", 
                   xtlab = 0:4)
