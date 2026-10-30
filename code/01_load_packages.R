@@ -25,7 +25,10 @@ library(Rmisc)            # For SF-12 confidence intervals
 # Packages for multinomial logistic regression 
 library(parsnip)          # For tidy model interfaces
 library(broom)            # For tidy model output
+library(broom.helpers)    # For additional tidying of outputs
 library(yardstick)        # For model performance
+library(brglm2)           # For bias reduction
 library(ggh4x)            # To extend ggplots with additional features (facet_wrap colours)
 library(cvms)             # For confusion matrices
 library(patchwork)        # For combining plots together
+library(flextable)        # For clean regression table outputs
