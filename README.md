@@ -1,2 +1,2 @@
 # mcsa-health-employment
-Code for the paper 'Joint health and employment trajectories following health-related economic inactivity in the United Kingdom'
+Analysis code for the paper 'Identifying and predicting joint employment and health trajectories following the onset of health-related economic inactivity in the United Kingdom: A multichannel sequence analysis'
