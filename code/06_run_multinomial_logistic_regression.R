@@ -93,9 +93,10 @@ broom::glance(model_baseline_br)
 tbl_baseline_br <- gtsummary::tbl_regression(
   model_baseline_br, 
   exponentiate = TRUE, 
-  tidy_fun = broom.helpers::tidy_parameters) %>% bold_labels()
+  tidy_fun = broom.helpers::tidy_parameters, 
+  estimate_fun = function(x) style_number(x, digits = 2)) %>% bold_labels()
 # Export 
-tbl_baseline_br %>% as_flex_table() %>% save_as_docx(path = "output/main/model_baseline_br.docx")
+tbl_baseline_br %>% as_flex_table() %>% colformat_double(digits = 2) %>% save_as_docx(path = "output/main/model_baseline_br.docx")
 
 
 ##### BASELINE + ONE YEAR PRIOR #####
@@ -137,9 +138,10 @@ broom::glance(model_prior_br)
 tbl_prior_br <- gtsummary::tbl_regression(
   model_prior_br, 
   exponentiate = TRUE, 
-  tidy_fun = broom.helpers::tidy_parameters) %>% bold_labels()
+  tidy_fun = broom.helpers::tidy_parameters, 
+  estimate_fun = function(x) style_number(x, digits = 2)) %>% bold_labels()
 # Export 
-tbl_prior_br %>% as_flex_table() %>% save_as_docx(path = "output/main/model_prior_br.docx")
+tbl_prior_br %>% as_flex_table() %>% colformat_double(digits = 2) %>% save_as_docx(path = "output/main/model_prior_br.docx")
 
 
 
@@ -611,7 +613,7 @@ roc_combined_br <- rbind(roc_curve(mod_preds_baseline_br, truth = group, '.pred_
                       roc_curve(mod_preds_prior_br, truth = group, '.pred_Cluster 1', '.pred_Cluster 2', '.pred_Cluster 3', '.pred_Cluster 4') %>% mutate(regression = "prior"))
 
 # Plot of ROC AUCs for both models together
-roc_auc_plot <- ggplot(data = roc_combined_br, aes(x = 1 - specificity, y = sensitivity, color = .level)) +
+roc_auc_plot_br <- ggplot(data = roc_combined_br, aes(x = 1 - specificity, y = sensitivity, color = .level)) +
   geom_line(linewidth = 1.1, alpha = 0.9, aes(linetype = regression)) +
   geom_abline(slope = 1, linetype = "dashed") +
   coord_fixed() +
@@ -624,7 +626,7 @@ roc_auc_plot <- ggplot(data = roc_combined_br, aes(x = 1 - specificity, y = sens
                                    "Model 2: Baseline and one-year prior to long-term sickness")) +
   ggh4x::facet_wrap2(~.level, strip = strip_themed(background_x = elem_list_rect(fill = c("#8DA0CB", "#66C2A5", "#FC8D62", "#E78AC3")), 
                                                    text_x = elem_list_text(face = "bold"))) +
-scale_color_discrete(palette = c("#8DA0CB", "#66C2A5", "#FC8D62", "#E78AC3")) + 
+  scale_color_discrete(palette = c("#8DA0CB", "#66C2A5", "#FC8D62", "#E78AC3")) + 
   theme_bw() + 
   guides(color = "none") + 
   theme(legend.position = "top", 
@@ -632,5 +634,5 @@ scale_color_discrete(palette = c("#8DA0CB", "#66C2A5", "#FC8D62", "#E78AC3")) +
 
 # Save ROC-AUC plot 
 png("output/main/roc_auc_plot_br.png", width = 1950, height = 1950, res = 300)
-roc_auc_plot
+roc_auc_plot_br
 dev.off()

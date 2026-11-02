@@ -16,6 +16,7 @@ library(RColorBrewer)     # For colour palettes
 library(colorspace)       # For adjusting colour palettes
 library(WeightedCluster)  # For cluster functions and statistics
 library(grid)             # For gridplot
+library(fpc)              # For bootstrapped cluster allocation
 
 # Packages for sensitivity analysis
 library(WeightIt)         # For inverse probability of attrition weighting

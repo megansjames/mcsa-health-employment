@@ -90,7 +90,7 @@ write.csv(round(sub_mats$employment, 2), file = "output/main/jb_transition_matri
 write.csv(round(sub_mats$health, 2), file = "output/main/srh_transition_matrix.csv")
 
 
-# Build multi-domain sequence using this matrices for the substition costs
+# Build multi-domain sequence using this matrices for the substitution costs
 channels <- list(employment = jb_seq, health = srh_seq)
 mc_dist <- TraMineR::seqMD(channels, 
                            sm = sub_mats,        # subs = substitution matrix based on transition rates for both channels 
@@ -119,6 +119,53 @@ plot(Clustered_range, stat = "all", norm = "zscoremed", lwd = 2) # all measures 
 png("output/main/cluster_stats_basecase.png", width = 2400, height = 1600, res = 300)
 plot(Clustered_range, stat = c("PBC", "HG", "ASW", "HC", "CH"), norm = "zscoremed", lwd = 2) # selected measures
 dev.off()
+
+##### Sensitivity Analysis: Bootstrapped Cluster Allocation #####
+
+# Cluster stability analysis using clusterboot() 
+
+# Select your preferred number of clusters k based on your cluster_stats (e.g., k = 4)
+k_target <- 4
+
+set.seed(123) # Set seed for reproducibility
+boot_mc <- fpc::clusterboot(
+  data = mc_dist,                # Multi-channel dissimilarity matrix
+  B = 100,                       # Number of bootstrap replicates (100–500)
+  distances = TRUE,              # Indicates data is a dissimilarity matrix
+  clustermethod = disthclustCBI, # Interface for dissimilarity-based hclust
+  method = "ward.D2",            # Agglomerative method matching your main analysis
+  k = k_target,                  # Target cluster count
+  showplots = FALSE
+)
+
+# Stability metrics
+stability_results <- data.frame(
+  Cluster = paste0("Cluster_", 1:k_target),
+  Jaccard_Mean = boot_mc$bootmean, # Mean Jaccard similarity across bootstrap runs
+  Dissolved_Count = boot_mc$bootbrd # Number of times cluster was dissolved (Jaccard < 0.5)
+)
+print(stability_results)
+write.csv(stability_results, file = "output/main/cluster_stability_jaccard.csv", row.names = FALSE)
+
+
+# Calculate average stability across all candidate k values (k = 2 to 10)
+stability_by_k <- numeric(9)
+names(stability_by_k) <- paste0("k_", 2:10)
+
+for (k_i in 2:10) {
+  set.seed(123)
+  boot_k <- fpc::clusterboot(
+    data = mc_dist, distances = TRUE, B = 100,
+    clustermethod = disthclustCBI, method = "ward.D2",
+    k = k_i, showplots = FALSE
+  )
+  stability_by_k[k_i - 1] <- mean(boot_k$bootmean)
+}
+
+# Append overall mean stability column to your cluster quality table
+cluster_stats_ext <- cbind(cluster_stats, Overall_Mean_Jaccard = stability_by_k)
+write.csv(cluster_stats_ext, file = "output/main/cluster_stats_with_stability.csv")
+
 
 
 #### 3. PLOTS ####
