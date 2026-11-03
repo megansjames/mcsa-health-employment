@@ -220,7 +220,7 @@ filter(conf_mat_constant_br, Prediction == Truth)
 yardstick::accuracy(mod_preds_constant_br, truth = group, estimate = .pred_class)
 
 # Area under the ROC 
-roc_auc_prior <- yardstick::roc_auc(mod_preds_constant_br, truth = group, `.pred_Cluster 1`, `.pred_Cluster 2`, `.pred_Cluster 3`, `.pred_Cluster 4`)$.estimate
+roc_auc_constant <- yardstick::roc_auc(mod_preds_constant_br, truth = group, `.pred_Cluster 1`, `.pred_Cluster 2`, `.pred_Cluster 3`, `.pred_Cluster 4`)$.estimate
 yardstick::roc_curve(mod_preds_constant_br, truth = group, `.pred_Cluster 1`, `.pred_Cluster 2`, `.pred_Cluster 3`, `.pred_Cluster 4`) %>%  
   ggplot(aes(x = 1 - specificity, y = sensitivity, color = .level)) +
   geom_line(linewidth = 1, alpha = 0.7) +
@@ -403,7 +403,7 @@ filter(conf_mat_prior_br, Prediction == Truth)
 yardstick::accuracy(mod_preds_prior_br, truth = group, estimate = .pred_class)
 
 # Area under the ROC 
-roc_auc_prior <- yardstick::roc_auc(mod_preds_prior_br, truth = group, `.pred_Cluster 1`, `.pred_Cluster 2`, `.pred_Cluster 3`, `.pred_Cluster 4`)$.estimate
+roc_auc_prior_br <- yardstick::roc_auc(mod_preds_prior_br, truth = group, `.pred_Cluster 1`, `.pred_Cluster 2`, `.pred_Cluster 3`, `.pred_Cluster 4`)$.estimate
 yardstick::roc_curve(mod_preds_prior_br, truth = group, `.pred_Cluster 1`, `.pred_Cluster 2`, `.pred_Cluster 3`, `.pred_Cluster 4`) %>%  
   ggplot(aes(x = 1 - specificity, y = sensitivity, color = .level)) +
   geom_line(linewidth = 1, alpha = 0.7) +
@@ -619,8 +619,8 @@ roc_auc_plot_br <- ggplot(data = roc_combined_br, aes(x = 1 - specificity, y = s
   coord_fixed() +
   labs(color = "",
        linetype = "", 
-       caption = paste0("Hand-Till AUC for Model 1 = ", sprintf("%.3f", round(roc_auc_baseline, 3)), 
-                        "\nHand-Till AUC for Model 2 = ", sprintf("%.3f", round(roc_auc_prior, 3)))) +
+       caption = paste0("Hand-Till AUC for Model 1 = ", sprintf("%.3f", round(roc_auc_baseline_br, 3)), 
+                        "\nHand-Till AUC for Model 2 = ", sprintf("%.3f", round(roc_auc_prior_br, 3)))) +
   scale_linetype_manual(values=c("dotted", "solid"), 
                         labels = c("Model 1: Baseline only", 
                                    "Model 2: Baseline and one-year prior to long-term sickness")) +
@@ -636,3 +636,30 @@ roc_auc_plot_br <- ggplot(data = roc_combined_br, aes(x = 1 - specificity, y = s
 png("output/main/roc_auc_plot_br.png", width = 1950, height = 1950, res = 300)
 roc_auc_plot_br
 dev.off()
+
+
+#### 4. SENSITIVITY ANALYSIS: PRIOR-YEAR ONLY MODEL ####
+
+# Model
+model_prior_only_br <- brglm2::brmultinom(
+  group ~ agegrp_10yr + sex + hiqual_4cat + marstat_2cat + gor + as.factor(intdaty_dv) + 
+    #srh + ghqcase + # remove the current health information
+    prior_srh + prior_ghqcase +  # prior health 
+    prior_jb + prior_equivquint, # prior economic activity and income
+  data = data,
+  type = "AS_mean" # Default Firth mean-bias reduction
+)
+broom::glance(model_prior_only_br)
+
+# Table
+tbl_prior_only_br <- gtsummary::tbl_regression(
+  model_prior_only_br, 
+  exponentiate = TRUE, 
+  tidy_fun = broom.helpers::tidy_parameters, 
+  estimate_fun = function(x) style_number(x, digits = 2)) %>% bold_labels()
+# Export 
+tbl_prior_only_br %>% as_flex_table() %>% colformat_double(digits = 2) %>% save_as_docx(path = "output/main/model_prior_only_br.docx")
+
+
+
+

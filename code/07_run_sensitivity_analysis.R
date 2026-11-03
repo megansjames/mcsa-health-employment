@@ -746,7 +746,7 @@ sample_baseline_main <- readRDS("data/processed/regression_sample.rds")
 # Filter the main sample to those in the EA only sample
 sample_baseline_main <- sample_baseline_main %>% 
   filter(pidp %in% unique(sample_baseline_ea_only$pidp)) %>% 
-  rename(cluster_main = cluster, group_main = group)
+  dplyr::rename(cluster_main = cluster, group_main = group)
 
 # Join together and make a little table
 cluster_comp <- full_join(sample_baseline_main, sample_baseline_ea_only)
@@ -805,3 +805,521 @@ gridplot(ssp_k,
          cex.legend = 1, 
          title.legend = "auto")
 dev.off()
+
+
+#### 4. SUBSAMPLE: EARLIER YEARS ONLY (PRE-COVID) ####
+
+# Filter to a subsample of only those who experience their transitions in the earlier waves
+# This allows for all observations to be pre-COVID
+
+SA <- "pre_covid"
+
+sample_pre_covid <- sample %>% 
+  filter(lts_first_wave <= 6)
+length(unique(sample_pre_covid$pidp))
+
+# Create economic activity (jb) sequence dataframe
+jb_seq_df_pre_covid <- sample_pre_covid %>% select(pidp, jb, transition_time) %>% 
+  filter(transition_time >= 0) %>% 
+  arrange(pidp, transition_time) %>% 
+  pivot_wider(id_cols = "pidp", names_from = "transition_time", values_from = "jb")
+
+jb_levels <- c("employed", "unemployed", "long-term sick", "retired", "care", "other")
+jb_labels <- c("Employed", "Unemployed", "Long-term sickness", "Retired", "Care", "Other")
+brewer.pal(n=6, "Set2")
+jb_palette <- c("#8DA0CB", "#66C2A5", "#FC8D62", "#E78AC3", "#FFD92F", "#A6D854") # select and reorder colours to match jb_levels
+
+jb_seq <- seqdef(jb_seq_df_pre_covid, 2:6, alphabet = jb_levels, labels = jb_labels, cpal = jb_palette)
+
+# Create self-rated health (srh) sequence dataframe
+srh_seq_df_pre_covid <- sample_pre_covid %>% select(pidp, srh, transition_time) %>% 
+  filter(transition_time >= 0) %>% 
+  arrange(pidp, transition_time) %>% 
+  pivot_wider(id_cols = "pidp", names_from = "transition_time", values_from = "srh")
+
+srh_levels <- c("excellent", "very good", "good", "fair", "poor")
+srh_labels <- c("Excellent", "Very good", "Good", "Fair", "Poor")
+brewer.pal(n=5, "RdYlBu")
+srh_palette <- c("#2C7BB6", "#ABD9E9", "#FFFFBF",  "#FDAE61", "#D7191C") # reorder colours to match srh_levels
+
+srh_seq <- seqdef(srh_seq_df_pre_covid, 2:6, alphabet = srh_levels, labels = srh_labels, cpal = srh_palette)
+
+# Create a multi-channel sequence combining economic activity and self-rated health sequences
+multi_seq <- seqHMM::mc_to_sc_data(list(jb_seq, srh_seq))
+alphabet(multi_seq)
+
+# Subs = Matrices based on transition rates
+# Indels = 1
+# Method = Optimal Matching
+
+# Create a multi-channel sequence combining economic activity and self-rated health sequences
+multi_seq <- seqHMM::mc_to_sc_data(list(jb_seq, srh_seq))
+alphabet(multi_seq)
+
+# Create substitution-cost matrices using transition rates for each of the channels
+sub_mats_basecase <- list(employment = TraMineR::seqsubm(jb_seq, method = "TRATE"),
+                          health = TraMineR::seqsubm(srh_seq, method = "TRATE")) 
+
+# Build multi-domain sequence 
+channels <- list(employment = jb_seq, health = srh_seq)
+mc_dist <- TraMineR::seqMD(channels, 
+                           sm = sub_mats_basecase, # subs = substitution matrix based on transition rates for both channels 
+                           indel = 1,              # indels = 1
+                           what = "diss", 
+                           method = "OM",        # optimal matching algorithm
+                           cweight = c(1, 1))    # equal weighting of both channels 
+
+# Conduct clustering using Ward's agglomerative hierarchical method of clustering
+Clustered <- hclust(as.dist(mc_dist), method = "ward.D2")
+
+# Estimate cluster quality statistics using those included in the WeightedCluster package
+Clustered_range <- WeightedCluster::as.clustrange(Clustered, diss = mc_dist, ncluster = 10)
+
+# Table of cluster quality statistics
+cluster_stats <- Clustered_range[["stats"]]
+write.csv(x = cluster_stats, file = paste0("output/sensitivity/cluster_stats_", SA, ".csv"))
+
+# Plot of cluster quality statistics
+plot(Clustered_range, stat = "all", norm = "zscoremed", lwd = 2)
+png(paste0("output/sensitivity/cluster_stats_", SA, ".png"), width = 2400, height = 1600, res = 300)
+plot(Clustered_range, stat = c("PBC", "HG", "ASW", "HC", "CH"), norm = "zscoremed", lwd = 2)
+dev.off()
+
+# 4 clusters 
+Cuts <- cutree(Clustered, k = 4)
+Groups <- factor(Cuts, labels = paste("Cluster", 1:4))
+# Plot using seqHMM
+ssp_k <- list()
+for(k in 1:4) {
+  ssp_k[[k]] <- seqHMM::ssp(list(jb_seq[Cuts == k,], 
+                                 srh_seq[Cuts == k,]),
+                            type = "d", border = NA, 
+                            with.legend = FALSE, 
+                            title = levels(Groups)[k], 
+                            ylab = c("Economic activity", "Self-rated health"),
+                            xlab = "Year since onset of long-term sickness")
+}
+png(paste0("output/sensitivity/plot_4clusters_", SA, ".png"), width = 900, height = 700)
+seqHMM::gridplot(ssp_k, ncol = 2, byrow = TRUE, 
+                 row.prop = c(0.4, 0.4, 0.2), cex.legend = 0.8, 
+                 title.legend = "auto")
+dev.off()
+
+## Compare cluster membership of EA only with the main analysis ##
+
+# Relabel for consistency with the main analysis and the ordering of clusters already defined
+# 4 clusters 
+Cuts <- cutree(Clustered, k = 4)
+Groups <- factor(Cuts, labels = paste("Cluster", 1:4))
+new_labels <- c("Cluster 4", "Cluster 2", "Cluster 3", "Cluster 1") 
+new_Groups <- factor(Groups, levels = paste("Cluster", 1:4), labels = new_labels)
+new_Cuts <- as.numeric(gsub("Cluster", "", new_Groups))
+
+# Filter to baseline sample 
+sample_baseline_pre_covid <- filter(sample_pre_covid, transition_time == 0)
+# Add on the cluster numbers 
+sample_baseline_pre_covid$cluster_pre_covid <- new_Cuts
+sample_baseline_pre_covid$group_pre_covid <- new_Groups
+
+# Read in data with the cluster numbers from the main basecase analysis
+sample_baseline_main <- readRDS("data/processed/regression_sample.rds")
+# Filter the main sample to those in the pre-COVID sample
+sample_baseline_main <- sample_baseline_main %>% 
+  filter(pidp %in% unique(sample_baseline_pre_covid$pidp)) %>% 
+  dplyr::rename(cluster_main = cluster, group_main = group)
+
+# Join together and make a little table
+cluster_comp <- full_join(sample_baseline_main, sample_baseline_pre_covid)
+cluster_comp_table <- table("precovid" = cluster_comp$cluster_pre_covid, "main" = cluster_comp$cluster_main)
+write.csv(x = cluster_comp_table, file = paste0("output/sensitivity/cluster_comp_", SA, "_main_table.csv"))
+pre_covid_pcts <- prop.table(table(cluster_comp$cluster_pre_covid)) * 100
+round(pre_covid_pcts, 1)
+
+
+##### Appendix Figure: Sequence distribution plots for each cluster for pre-COVID sample #####
+
+# Reorder the clusters to be more informative and logical with cluster names
+
+# Cluster 1: Entering employment
+ssp_k[[1]] <- ssp(list(jb_seq[new_Cuts == 1,], 
+                       srh_seq[new_Cuts == 1,]),
+                  type = "d", border = NA, 
+                  with.legend = FALSE, 
+                  title = paste0("Cluster 1: Entering employment"), 
+                  ylab = c("Economic activity", "Self-rated health"),
+                  xlab = "Year since onset of long-term sickness", 
+                  xtlab = 0:4)
+
+# Cluster 2: Precarious non-employment
+ssp_k[[2]] <- ssp(list(jb_seq[new_Cuts == 2,], 
+                       srh_seq[new_Cuts == 2,]),
+                  type = "d", border = NA, 
+                  with.legend = FALSE, 
+                  title = paste0("Cluster 2: Precarious non-employment"), 
+                  ylab = c("Economic activity", "Self-rated health"),
+                  xlab = "Year since onset of long-term sickness", 
+                  xtlab = 0:4)
+
+# Cluster 3: Continued long-term sickness
+ssp_k[[3]] <- ssp(list(jb_seq[new_Cuts == 3,], 
+                       srh_seq[new_Cuts == 3,]),
+                  type = "d", border = NA, 
+                  with.legend = FALSE, 
+                  title = paste0("Cluster 3: Continued long-term sickness"), 
+                  ylab = c("Economic activity", "Self-rated health"),
+                  xlab = "Year since onset of long-term sickness", 
+                  xtlab = 0:4)
+
+# Cluster 4: Rapid retirement
+ssp_k[[4]] <- ssp(list(jb_seq[new_Cuts == 4,], 
+                       srh_seq[new_Cuts == 4,]),
+                  type = "d", border = NA, 
+                  with.legend = FALSE, 
+                  title = paste0("Cluster 4: Rapid retirement"), 
+                  ylab = c("Economic activity", "Self-rated health"),
+                  xlab = "Year since onset of long-term sickness", 
+                  xtlab = 0:4)
+
+# Save publication-quality plot
+png(paste0("output/sensitivity/plot_4clusters_", SA, "_publication.png"), width = 4500, height = 5500, res=500)
+gridplot(ssp_k, 
+         ncol = 2, byrow = TRUE, 
+         row.prop = c(0.41, 0.41, 0.18), 
+         cex.legend = 1, 
+         title.legend = "auto")
+dev.off()
+
+
+#### 5. BOOTSTRAPPED CLUSTER ALLOCATION ####
+
+# Set-up of sequence objects for different MCSA specifications (costs for subs and indels and dissimilarity methods)
+
+# Create economic activity (jb) sequence dataframe
+jb_seq_df <- sample %>% select(pidp, jb, transition_time) %>% 
+  filter(transition_time >= 0) %>% 
+  arrange(pidp, transition_time) %>% 
+  pivot_wider(id_cols = "pidp", names_from = "transition_time", values_from = "jb")
+
+jb_levels <- c("employed", "unemployed", "long-term sick", "retired", "care", "other")
+jb_labels <- c("Employed", "Unemployed", "Long-term sickness", "Retired", "Care", "Other")
+brewer.pal(n=6, "Set2")
+jb_palette <- c("#8DA0CB", "#66C2A5", "#FC8D62", "#E78AC3", "#FFD92F", "#A6D854") # select and reorder colours to match jb_levels
+
+jb_seq <- seqdef(jb_seq_df, 2:6, alphabet = jb_levels, labels = jb_labels, cpal = jb_palette)
+
+
+# Create self-rated health (srh) sequence dataframe
+srh_seq_df <- sample %>% select(pidp, srh, transition_time) %>% 
+  filter(transition_time >= 0) %>% 
+  arrange(pidp, transition_time) %>% 
+  pivot_wider(id_cols = "pidp", names_from = "transition_time", values_from = "srh")
+
+srh_levels <- c("excellent", "very good", "good", "fair", "poor")
+srh_labels <- c("Excellent", "Very good", "Good", "Fair", "Poor")
+brewer.pal(n=5, "RdYlBu")
+srh_palette <- c("#2C7BB6", "#ABD9E9", "#FFFFBF",  "#FDAE61", "#D7191C") # reorder colours to match srh_levels
+
+srh_seq <- seqdef(srh_seq_df, 2:6, alphabet = srh_levels, labels = srh_labels, cpal = srh_palette)
+
+# Create a multi-channel sequence combining economic activity and self-rated health sequences
+multi_seq <- seqHMM::mc_to_sc_data(list(jb_seq, srh_seq))
+alphabet(multi_seq)
+
+# Subs = Matrices based on transition rates
+# Indels = 1
+# Method = Optimal Matching
+
+# Create substitution-cost matrices using transition rates for each of the channels
+sub_mats_basecase <- list(employment = TraMineR::seqsubm(jb_seq, method = "TRATE"),
+                          health = TraMineR::seqsubm(srh_seq, method = "TRATE")) 
+
+# Build multi-domain sequence 
+channels <- list(employment = jb_seq, health = srh_seq)
+mc_dist <- TraMineR::seqMD(channels, 
+                           sm = sub_mats_basecase, # subs = substitution matrix based on transition rates for both channels 
+                           indel = 1,              # indels = 1
+                           what = "diss", 
+                           method = "OM",        # optimal matching algorithm
+                           cweight = c(1, 1))    # equal weighting of both channels 
+
+# Conduct clustering using Ward's agglomerative hierarchical method of clustering
+Clustered <- hclust(as.dist(mc_dist), method = "ward.D2")
+
+# Estimate cluster quality statistics using those included in the WeightedCluster package
+Clustered_range <- WeightedCluster::as.clustrange(Clustered, diss = mc_dist, ncluster = 10)
+
+# Table of cluster quality statistics
+cluster_stats <- Clustered_range[["stats"]]
+
+# Cluster stability analysis using clusterboot() 
+
+# Select your preferred number of clusters k based on your cluster_stats (e.g., k = 4)
+k_target <- 4
+set.seed(123)
+boot_mc <- fpc::clusterboot(
+  data = mc_dist,                # Multi-channel dissimilarity matrix
+  B = 100,                       # Number of bootstrap replicates (100–500)
+  distances = TRUE,              # Indicates data is a dissimilarity matrix
+  clustermethod = disthclustCBI, # Interface for dissimilarity-based hclust
+  method = "ward.D2",            # Agglomerative method matching your main analysis
+  k = k_target,                  # Target cluster count
+  showplots = FALSE)
+
+# Stability metrics
+stability_results <- data.frame(
+  Cluster = paste0("Cluster_", 1:k_target),
+  Jaccard_Mean = boot_mc$bootmean, # Mean Jaccard similarity across bootstrap runs
+  Dissolved_Count = boot_mc$bootbrd # Number of times cluster was dissolved (Jaccard < 0.5)
+)
+print(stability_results)
+write.csv(stability_results, file = "output/sensitivity/cluster_stability_jaccard.csv", row.names = FALSE)
+
+
+# Calculate average stability across all candidate k values (k = 2 to 10)
+stability_by_k <- numeric(9)
+names(stability_by_k) <- paste0("k_", 2:10)
+
+for (k_i in 2:10) {
+  set.seed(123)
+  boot_k <- fpc::clusterboot(
+    data = mc_dist, distances = TRUE, B = 100,
+    clustermethod = disthclustCBI, method = "ward.D2",
+    k = k_i, showplots = FALSE
+  )
+  stability_by_k[k_i - 1] <- mean(boot_k$bootmean)
+}
+
+# Append overall mean stability column to your cluster quality table
+cluster_stats_ext <- cbind(cluster_stats, Overall_Mean_Jaccard = stability_by_k)
+write.csv(cluster_stats_ext, file = "output/sensitivity/cluster_stats_with_stability.csv")
+
+
+
+#### 6. CROSS-VALIDATION OF PREDICTION MODELS ####
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Read in the regression sample with cluster numbers
+data <- readRDS("data/processed/regression_sample.rds")
+
+# Re-level economic activity to remove long-term sickness (impossible for this to be a prior economic activity due to how the sample is defined)
+levels(data$prior_jb)
+data$jb <- factor(as.numeric(data$prior_jb), 
+                  levels = c(1,2,4,5,6), 
+                  labels = c("employed", "unemployed", "retired", "care", "other"))  
+levels(data$prior_jb)
+
+# Set reference categories for all other variables to be included in the regression
+data <- data %>% 
+  mutate(agegrp_10yr = fct_relevel(agegrp_10yr, "55-64"), 
+         hiqual_3cat = fct_relevel(hiqual_3cat, "high", "medium", "low"), 
+         hiqual_4cat = fct_relevel(hiqual_4cat, "high", "medium", "low", "no"), 
+         gor = fct_relevel(gor, "London"),
+         srh = fct_relevel(srh, "good"), # set good as reference category
+         prior_srh = fct_relevel(prior_srh, "good"), # good as reference category
+         prior_jb = fct_relevel(jb, "employed"), 
+         prior_equivquint = fct_relevel(prior_equivquint, "Q3")) # set Q3 as the reference category
+
+# Define the model formulas for each of the models
+
+# Model 1: Baseline only
+f_baseline <- group ~ agegrp_10yr + sex + hiqual_4cat + marstat_2cat + gor + 
+  as.factor(intdaty_dv) + srh + ghqcase
+# Model 2: Baseline and prior
+f_prior <- group ~ agegrp_10yr + sex + hiqual_4cat + marstat_2cat + gor + 
+  as.factor(intdaty_dv) + srh + ghqcase + 
+  prior_srh + prior_ghqcase + prior_jb + prior_equivquint # prior characteristics
+# Model 3: Prior only 
+f_prior_only <- group ~ agegrp_10yr + sex + hiqual_4cat + marstat_2cat + gor + 
+  as.factor(intdaty_dv) +
+  prior_srh + prior_ghqcase + prior_jb + prior_equivquint # prior characteristics
+
+# Create 10-fold cross-validation repeated 5 times (stratified by outcome)
+cv_folds <- rsample::vfold_cv(data, v = 10, repeats = 5, strata = group) # 10 and 5 before
+
+# Start counter for fitting of models to each of the folds
+progress_env <- new.env()
+progress_env$count <- 0
+progress_env$total <- nrow(cv_folds)
+
+# Function to fit brmultinom and evaluate out-of-sample metrics per fold
+eval_brmultinom <- function(split, formula_obj) {
+  
+  # Increment counter and print current status
+  progress_env$count <- progress_env$count + 1
+  cat(sprintf("[%d/%d] Fitting brmultinom fold...\n", progress_env$count, progress_env$total))
+  
+  train <- rsample::analysis(split)
+  test  <- rsample::assessment(split)
+  
+  # Fit bias-reduced multinomial model on training set
+  fit <- brglm2::brmultinom(formula_obj, 
+                            data = train, 
+                            type = "AS_mean", 
+                            slowit = 0.5,   # Slow down steps to guarantee convergence
+                            maxit = 500,    # Allow up to 500 iterations
+                            epsilon = 1e-5)  # Slightly relax tolerance if necessary (default 1e-6))
+  
+  # Predict classes and probabilities on test set
+  pred_class <- predict(fit, newdata = test, type = "class")
+  pred_probs <- predict(fit, newdata = test, type = "probs")
+  
+  # Out-of-sample accuracy
+  acc <- mean(pred_class == test$group, na.rm = TRUE)
+  
+  # Out-of-sample Multiclass ROC AUC (using Hand-Till)
+  mc_auc <- as.numeric(
+    pROC::multiclass.roc(response = test$group, 
+                         predictor = pred_probs, 
+                         levels = levels(test$group))$auc)
+  
+  tibble::tibble(accuracy = acc, roc_auc = mc_auc)
+}
+
+# Run Cross-Validation for Model 1 (Baseline)
+cv_baseline_br <- cv_folds %>%
+  mutate(metrics = map(splits, ~eval_brmultinom(.x, f_baseline))) %>%
+  unnest(metrics) %>%
+  mutate(model = "Model 1: Baseline (BR)")
+saveRDS(cv_baseline_br, file = "output/sensitivity/cv_baseline_br.rds")
+
+# Run Cross-Validation for Model 2 (Baseline + Prior)
+progress_env$count <- 0 # re-set counter
+cv_prior_br <- cv_folds %>%
+  mutate(metrics = map(splits, ~eval_brmultinom(.x, f_prior))) %>%
+  unnest(metrics) %>%
+  mutate(model = "Model 2: Baseline + Prior (BR)")
+saveRDS(cv_prior_br, file = "output/sensitivity/cv_prior_br.rds")
+
+# Run Cross-Validation for Model 3 (Baseline + Prior)
+progress_env$count <- 0 # re-set counter
+cv_prior_only_br <- cv_folds %>%
+  mutate(metrics = map(splits, ~eval_brmultinom(.x, f_prior_only))) %>%
+  unnest(metrics) %>%
+  mutate(model = "Model 3: Prior Only (BR)")
+saveRDS(cv_prior_only_br, file = "output/sensitivity/cv_prior_only_br.rds")
+
+
+##### Appendix Table: Summary of cross-validation of models #####
+
+# Calculate out-of-sample estimates with 95% CIs
+oos_summary_br <- bind_rows(cv_baseline_br, cv_prior_br, cv_prior_only_br) %>%
+  pivot_longer(cols = c(accuracy, roc_auc), names_to = "metric", values_to = "estimate") %>%
+  dplyr::group_by(model, metric) %>%
+  dplyr::summarize(
+    n = n(), 
+    Mean = mean(estimate, na.rm = TRUE),
+    SE = sd(estimate, na.rm = TRUE) / sqrt(n()),
+    CI_Lower = Mean - 1.96 * SE,
+    CI_Upper = Mean + 1.96 * SE,
+    .groups  = "drop")
+
+print(oos_summary_br)
+write.csv(oos_summary_br, file = "output/sensitivity/oos_summary_br.csv")
+
+# Join fold-by-fold results to test difference between baseline and baseline + prior models
+diff_br_2v1 <- cv_prior_br %>%
+  select(id, id2, acc_prior = accuracy, auc_prior = roc_auc) %>%
+  inner_join(cv_baseline_br %>% select(id, id2, acc_base = accuracy, auc_base = roc_auc),
+    by = c("id", "id2")) %>%
+  mutate(acc_diff = acc_prior - acc_base,
+         auc_diff = auc_prior - auc_base)
+
+# Paired t-tests across resamples
+test_acc <- t.test(diff_br_2v1$acc_diff)
+test_auc <- t.test(diff_br_2v1$auc_diff)
+
+# Summary of differences between out-of-sample estimates by model
+oos_diff_summary_2v1 <- tibble::tibble(
+  Metric = c("Accuracy", "Multiclass AUC"),
+  Mean_Diff = c(mean(diff_br_2v1$acc_diff), mean(diff_br_2v1$auc_diff)),
+  CI_Lower  = c(test_acc$conf.int[1], test_auc$conf.int[1]),
+  CI_Upper  = c(test_acc$conf.int[2], test_auc$conf.int[2]),
+  p_value   = c(test_acc$p.value, test_auc$p.value))
+
+print(oos_diff_summary_2v1)
+write.csv(oos_diff_summary_2v1, file = "output/sensitivity/oos_diff_summary_2v1.csv")
+
+# Join fold-by-fold results to test difference between prior only and baseline + prior models
+diff_br_2v3 <- cv_prior_br %>%
+  select(id, id2, acc_prior = accuracy, auc_prior = roc_auc) %>%
+  inner_join(cv_prior_only_br %>% select(id, id2, acc_prior_only = accuracy, auc_prior_only = roc_auc),
+             by = c("id", "id2")) %>%
+  mutate(acc_diff = acc_prior - acc_prior_only,
+         auc_diff = auc_prior - auc_prior_only)
+
+# Paired t-tests across resamples
+test_acc <- t.test(diff_br_2v3$acc_diff)
+test_auc <- t.test(diff_br_2v3$auc_diff)
+
+# Summary of differences between out-of-sample estimates by model
+oos_diff_summary_2v3 <- tibble::tibble(
+  Metric = c("Accuracy", "Multiclass AUC"),
+  Mean_Diff = c(mean(diff_br_2v3$acc_diff), mean(diff_br_2v3$auc_diff)),
+  CI_Lower  = c(test_acc$conf.int[1], test_auc$conf.int[1]),
+  CI_Upper  = c(test_acc$conf.int[2], test_auc$conf.int[2]),
+  p_value   = c(test_acc$p.value, test_auc$p.value))
+
+print(oos_diff_summary_2v3)
+write.csv(oos_diff_summary_2v3, file = "output/sensitivity/oos_diff_summary_2v3.csv")
+
+# Join fold-by-fold results to test difference between prior only and baseline only models
+diff_br_3v1 <- cv_prior_only_br %>%
+  select(id, id2, acc_prior_only = accuracy, auc_prior_only = roc_auc) %>%
+  inner_join(cv_baseline_br %>% select(id, id2, acc_base = accuracy, auc_base = roc_auc),
+             by = c("id", "id2")) %>%
+  mutate(acc_diff = acc_prior_only - acc_base,
+         auc_diff = auc_prior_only - acc_base)
+
+# Paired t-tests across resamples
+test_acc <- t.test(diff_br_3v1$acc_diff)
+test_auc <- t.test(diff_br_3v1$auc_diff)
+
+# Summary of differences between out-of-sample estimates by model
+oos_diff_summary_3v1 <- tibble::tibble(
+  Metric = c("Accuracy", "Multiclass AUC"),
+  Mean_Diff = c(mean(diff_br_3v1$acc_diff), mean(diff_br_3v1$auc_diff)),
+  CI_Lower  = c(test_acc$conf.int[1], test_auc$conf.int[1]),
+  CI_Upper  = c(test_acc$conf.int[2], test_auc$conf.int[2]),
+  p_value   = c(test_acc$p.value, test_auc$p.value))
+
+print(oos_diff_summary_3v1)
+write.csv(oos_diff_summary_3v1, file = "output/sensitivity/oos_diff_summary_3v1.csv")
+
+
+# Plots
+cv_accuracy_plot <- bind_rows(cv_baseline_br, cv_prior_br) %>%
+  pivot_longer(cols = c(accuracy, roc_auc), names_to = "metric", values_to = "estimate") %>%  
+  filter(metric == "accuracy") %>% 
+  ggplot(aes(x = model, y = estimate)) + 
+  geom_violin(fill = "grey95", color = "grey50", trim = FALSE, alpha = 0.6) +  # neutral violin background
+  geom_jitter(aes(color = id), width = 0.04, height = 0, size = 2, alpha = 0.8) + # coloured by repeat
+  labs(
+    x = "", 
+    y = "Cross-Validated Accuracy", 
+    color = "CV Repeat") +
+  scale_x_discrete(labels = c("Model 1: Baseline Only", "Model 2: Baseline + One-Year Prior")) + 
+  theme_minimal()
+
+png("output/sensitivity/cv_accuracy_plot.png", width = 2000, height = 1400, res = 300)
+cv_accuracy_plot
+dev.off()
+
+cv_auc_plot <- bind_rows(cv_baseline_br, cv_prior_br) %>%
+  pivot_longer(cols = c(accuracy, roc_auc), names_to = "metric", values_to = "estimate") %>%  
+  filter(metric == "roc_auc") %>% 
+  ggplot(aes(x = model, y = estimate)) + 
+  geom_violin(fill = "grey95", color = "grey50", trim = FALSE, alpha = 0.6) +  # neutral violin background
+  geom_jitter(aes(color = id), width = 0.04, height = 0, size = 2, alpha = 0.8) + # coloured by repeat
+  labs(
+    x = "", 
+    y = "Cross-Validated Overall Area Under Curve (AUC)", 
+    color = "CV Repeat") +
+  scale_x_discrete(labels = c("Model 1: Baseline Only", "Model 2: Baseline + One-Year Prior")) + 
+  theme_minimal()
+
+png("output/sensitivity/cv_auc_plot.png", width = 2000, height = 1400, res = 300)
+cv_accuracy_plot
+dev.off()
+

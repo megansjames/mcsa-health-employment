@@ -29,7 +29,9 @@ library(broom)            # For tidy model output
 library(broom.helpers)    # For additional tidying of outputs
 library(yardstick)        # For model performance
 library(brglm2)           # For bias reduction
-library(ggh4x)            # To extend ggplots with additional features (facet_wrap colours)
+library(ggh4x)            # For extending ggplots with additional features (facet_wrap colours)
 library(cvms)             # For confusion matrices
+library(pROC)             # For ROC curves 
+library(rsample)          # For re-sampling in cross-validation
 library(patchwork)        # For combining plots together
 library(flextable)        # For clean regression table outputs
