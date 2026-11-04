@@ -62,7 +62,7 @@ data <- data %>%
 data <- data %>% 
   mutate(hiqual_4cat = case_when(hiqual_dv %in% c(1,2) ~ "high", 
                                  hiqual_dv %in% c(3,4) ~ "medium", 
-                                 hiqual_dv %in% c(5) ~ "low",
+                                 hiqual_dv %in% c(5) ~ "other",
                                  hiqual_dv %in% c(9) ~ "no",
                                  TRUE ~ NA))
 

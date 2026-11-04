@@ -46,9 +46,10 @@ table(missing_combined$missing)
 
 table <- missing_combined %>%
   gtsummary::tbl_summary(
-    by = missing, 
+    by = missing, # by reason for missingness
     include = c(sex, agegrp_10yr, marstat_2cat, hiqual_4cat, gor, srh, ghqcase, 
                 prior_jb, prior_srh, prior_ghqcase, prior_equivquint, wave_number), 
+    type = all_dichotomous() ~ "categorical", # <--- Forces binary variables to display all levels
     statistic = list(all_categorical() ~ c("{n} ({p}%)") , 
                      missing = "no"), 
     digits = list(all_categorical() ~ c(0,1)), 
@@ -64,13 +65,54 @@ table <- missing_combined %>%
                  prior_ghqcase = "Prior GHQ-12 caseness", 
                  prior_equivquint = "Prior equivalised household income quintile"
     )) %>% 
+  gtsummary::add_p(test = all_categorical() ~ "chisq.test", # Chi-square tests
+                   test.args = all_categorical() ~ list(simulate.p.value = TRUE, B = 10000)) %>%  # Simulation
+  gtsummary::bold_p(t = 0.05) %>%       #  Bold for statistically significant p-values (< 0.05)
   modify_header(label = "**Variable**") %>%
   bold_labels() %>% 
   as_gt() %>% gt::tab_source_note(gt::md("*Percentages may not sum to 100% due to rounding*"))
 # Print as HTML in the Viewer
 table
 # Export to a Word document for future use
-gt::gtsave(table, filename = "output/missing_sample.docx")
+gt::gtsave(table, filename = "output/sensitivity/missing_by_reason_sample.docx")
+
+# Table with a binary flag for missingness/exclusion #
+
+# Example code to create a binary flag
+missing_combined <- missing_combined %>%
+  mutate(sample_status = if_else(missing == "final", "Included", "Excluded"))
+
+table_binary <- missing_combined %>%
+  gtsummary::tbl_summary(
+    by = sample_status, # binary included or excluded status
+    include = c(sex, agegrp_10yr, marstat_2cat, hiqual_4cat, gor, srh, ghqcase, 
+                prior_jb, prior_srh, prior_ghqcase, prior_equivquint, wave_number), 
+    type = all_dichotomous() ~ "categorical", # <--- Forces binary variables to display all levels
+    statistic = list(all_categorical() ~ c("{n} ({p}%)") , 
+                     missing = "no"), 
+    digits = list(all_categorical() ~ c(0,1)), 
+    label = list(sex = "Sex", 
+                 agegrp_10yr = "Age group", 
+                 marstat_2cat = "Partnership status", 
+                 hiqual_4cat = "Highest educational qualification", 
+                 gor = "Region", 
+                 srh = "Self-rated health", 
+                 ghqcase = "GHQ-12 caseness", 
+                 prior_jb = "Prior economic activity", 
+                 prior_srh = "Prior self-rated health", 
+                 prior_ghqcase = "Prior GHQ-12 caseness", 
+                 prior_equivquint = "Prior equivalised household income quintile"
+    )) %>%
+  gtsummary::add_p(test = all_categorical() ~ "chisq.test") %>% # Chi-square tests 
+  gtsummary::bold_p(t = 0.05) %>%       #  Bold for statistically significant p-values (< 0.05)
+  modify_header(label = "**Variable**") %>%
+  bold_labels() %>% 
+  as_gt() %>% gt::tab_source_note(gt::md("*Percentages may not sum to 100% due to rounding*"))
+# Print as HTML in the Viewer
+table_binary
+# Export to a Word document for future use
+gt::gtsave(table_binary, filename = "output/sensitivity/missing_binary_sample.docx")
+
 
 
 #### 2. MISSING DUE TO ITEM NON-RESPONSE ####
