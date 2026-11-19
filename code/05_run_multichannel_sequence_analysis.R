@@ -437,6 +437,37 @@ dev.off()
 # Clean up untrace
 untrace(seqHMM:::SSPlotter, where = asNamespace("seqHMM"))
 
+##### Additional Table: State proportions over time #####
+
+# List of proportion matrices for Economic Activity (jb_seq)
+jb_prop_list <- lapply(1:4, function(k) {
+  seqstatd(jb_seq[new_Cuts == k, ])$Frequencies
+})
+
+# List of proportion matrices for Self-Rated Health (srh_seq)
+srh_prop_list <- lapply(1:4, function(k) {
+  seqstatd(srh_seq[new_Cuts == k, ])$Frequencies
+})
+
+# Assign cluster names to the lists
+names(jb_prop_list)  <- paste("Cluster", 1:4)
+names(srh_prop_list) <- paste("Cluster", 1:4)
+
+# Proportions for Cluster 1
+round(jb_prop_list[["Cluster 1"]], 3)
+round(srh_prop_list[["Cluster 1"]], 3)
+
+# Proportions for Cluster 2
+round(jb_prop_list[["Cluster 2"]], 3)
+round(srh_prop_list[["Cluster 2"]], 3)
+
+# Proportions for Cluster 3
+round(jb_prop_list[["Cluster 3"]], 3)
+round(srh_prop_list[["Cluster 3"]], 3)
+
+# Proportions for Cluster 4
+round(jb_prop_list[["Cluster 4"]], 3)
+round(srh_prop_list[["Cluster 4"]], 3)
 
 #### 4. PREPROCESS FOR MULTINOMIAL LOGISTIC REGRESSION ####
 
@@ -469,11 +500,12 @@ regression_sample <- readRDS("data/processed/regression_sample.rds")
 
 ##### Table: Analytical sample by covariate by cluster #####
 
-table <- regression_sample %>%
+table <- regression_sample %>% mutate(intdaty = as.factor(intdaty_dv)) %>% 
   gtsummary::tbl_summary(
     by = cluster, 
     include = c(sex, agegrp_10yr, marstat_2cat, hiqual_4cat, gor, srh, ghqcase, 
-                prior_jb, prior_srh, prior_ghqcase, prior_equivquint), 
+                prior_jb, prior_srh, prior_ghqcase, prior_equivquint, intdaty), 
+    type = all_dichotomous() ~ "categorical", # <--- Forces binary variables to display all levels
     statistic = list(all_categorical() ~ c("{n} ({p}%)") , 
                      missing = "no"), 
     digits = list(all_categorical() ~ c(0,1)), 

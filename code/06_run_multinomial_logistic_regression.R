@@ -306,7 +306,9 @@ conf_mat_baseline_plot_br <- ggplot(data = conf_mat_baseline_br, mapping = aes(x
   labs(subtitle = "Baseline")
 
 # Accuracy by cluster
-filter(conf_mat_baseline_br, Prediction == Truth)
+mod_preds_baseline_br %>%
+  group_by(group) %>%
+  accuracy(truth = group, estimate = .pred_class)
 
 # Model accuracy
 yardstick::accuracy(mod_preds_baseline_br, truth = group, estimate = .pred_class)
@@ -350,7 +352,9 @@ conf_mat_prior_plot
 dev.off()
 
 # Accuracy by cluster
-filter(conf_mat_prior, Prediction == Truth)
+mod_preds_prior %>%
+  group_by(group) %>%
+  accuracy(truth = group, estimate = .pred_class)
 
 # Model accuracy
 yardstick::accuracy(mod_preds_prior, truth = group, estimate = .pred_class)
@@ -397,7 +401,9 @@ conf_mat_prior_plot_br <- ggplot(data = conf_mat_prior_br, mapping = aes(x = Tru
   labs(subtitle = "Baseline and one-year prior")
 
 # Accuracy by cluster
-filter(conf_mat_prior_br, Prediction == Truth)
+mod_preds_prior_br %>%
+  group_by(group) %>%
+  accuracy(truth = group, estimate = .pred_class)
 
 # Model accuracy
 yardstick::accuracy(mod_preds_prior_br, truth = group, estimate = .pred_class)

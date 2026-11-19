@@ -213,7 +213,7 @@ mc_dist <- TraMineR::seqMD(channels,
                            indel = 1,                     # indels = 1
                            what = "diss", 
                            method = "HAM",                # Dynamic Hamming Distance - I think this is just Hamming distance not Dynamic Hamming distance!!!
-                           cyouweight = c(1, 1))             # equal weighting of both channels 
+                           cweight = c(1, 1))             # equal weighting of both channels 
 
 # Conduct clustering using Ward's agglomerative hierarchical method of clustering
 Clustered <- hclust(as.dist(mc_dist), method = "ward.D2")
@@ -338,7 +338,7 @@ MDdist2 <- seqdist(MDseq,
 Clustered <- hclust(as.dist(MDdist2), method = "ward.D2")
 
 # Estimate cluster quality statistics using those included in the WeightedCluster package
-Clustered_range <- WeightedCluster::as.clustrange(Clustered, diss = mc_dist, ncluster = 10)
+Clustered_range <- WeightedCluster::as.clustrange(Clustered, diss = MDdist2, ncluster = 10) # fix this 
 
 # Table of cluster quality statistics
 cluster_stats <- Clustered_range[["stats"]]
@@ -558,8 +558,8 @@ dev.off()
 # Individual plots for each cluster using the same scheme as the main analysis
 ssp_k <- list()
 for(k in 1:4) {
-  ssp_k[[k]] <- seqHMM::ssp(list(jb_seq[Cuts == k,], 
-                                 srh_seq[Cuts == k,]),
+  ssp_k[[k]] <- seqHMM::ssp(list(jb_seq[new_Cuts == k,], 
+                                 srh_seq[new_Cuts == k,]),
                             type = "d", border = NA, 
                             with.legend = FALSE, 
                             title = levels(new_Groups_labelled)[k], 
@@ -1136,7 +1136,7 @@ f_prior_only <- group ~ agegrp_10yr + sex + hiqual_4cat + marstat_2cat + gor +
   prior_srh + prior_ghqcase + prior_jb + prior_equivquint # prior characteristics
 
 # Create 10-fold cross-validation repeated 5 times (stratified by outcome)
-cv_folds <- rsample::vfold_cv(data, v = 10, repeats = 5, strata = group) # 10 and 5 before
+cv_folds <- rsample::vfold_cv(data, v = 10, repeats = 5, strata = group)
 
 # Start counter for fitting of models to each of the folds
 progress_env <- new.env()
@@ -1203,6 +1203,18 @@ saveRDS(cv_prior_only_br, file = "output/sensitivity/cv_prior_only_br.rds")
 
 ##### Appendix Table: Summary of cross-validation of models #####
 
+# Nadeau-Bengio corrected resampled t-test (Nadeau & Bengio 2003)
+J     <- nrow(cv_baseline_br)    # 50
+ratio <- 1/9                     # test size / training size for 10-fold
+tcrit <- qt(0.975, df = J - 1)
+
+nb_test <- function(d) {
+  m  <- mean(d)
+  se <- sd(d) * sqrt(1/J + ratio)
+  c(mean = m, lo = m - tcrit * se, hi = m + tcrit * se,
+    p = 2 * pt(-abs(m / se), df = J - 1))
+}
+
 # Calculate out-of-sample estimates with 95% CIs
 oos_summary_br <- bind_rows(cv_baseline_br, cv_prior_br, cv_prior_only_br) %>%
   pivot_longer(cols = c(accuracy, roc_auc), names_to = "metric", values_to = "estimate") %>%
@@ -1210,36 +1222,36 @@ oos_summary_br <- bind_rows(cv_baseline_br, cv_prior_br, cv_prior_only_br) %>%
   dplyr::summarize(
     n = n(), 
     Mean = mean(estimate, na.rm = TRUE),
-    SE = sd(estimate, na.rm = TRUE) / sqrt(n()),
-    CI_Lower = Mean - 1.96 * SE,
-    CI_Upper = Mean + 1.96 * SE,
+    SE = sd(estimate, na.rm = TRUE) * sqrt(1/J + ratio),
+    CI_Lower = Mean - tcrit * SE,
+    CI_Upper = Mean + tcrit * SE,
     .groups  = "drop")
 
 print(oos_summary_br)
-write.csv(oos_summary_br, file = "output/sensitivity/oos_summary_br.csv")
+write.csv(oos_summary_br, file = "output/sensitivity/oos_summary_br_nb.csv")
 
 # Join fold-by-fold results to test difference between baseline and baseline + prior models
 diff_br_2v1 <- cv_prior_br %>%
   select(id, id2, acc_prior = accuracy, auc_prior = roc_auc) %>%
   inner_join(cv_baseline_br %>% select(id, id2, acc_base = accuracy, auc_base = roc_auc),
-    by = c("id", "id2")) %>%
+             by = c("id", "id2")) %>%
   mutate(acc_diff = acc_prior - acc_base,
          auc_diff = auc_prior - auc_base)
 
 # Paired t-tests across resamples
-test_acc <- t.test(diff_br_2v1$acc_diff)
-test_auc <- t.test(diff_br_2v1$auc_diff)
+r_acc <- nb_test(diff_br_2v1$acc_diff)
+r_auc <- nb_test(diff_br_2v1$auc_diff)
 
 # Summary of differences between out-of-sample estimates by model
 oos_diff_summary_2v1 <- tibble::tibble(
-  Metric = c("Accuracy", "Multiclass AUC"),
-  Mean_Diff = c(mean(diff_br_2v1$acc_diff), mean(diff_br_2v1$auc_diff)),
-  CI_Lower  = c(test_acc$conf.int[1], test_auc$conf.int[1]),
-  CI_Upper  = c(test_acc$conf.int[2], test_auc$conf.int[2]),
-  p_value   = c(test_acc$p.value, test_auc$p.value))
+  Metric    = c("Accuracy", "Multiclass AUC"),
+  Mean_Diff = c(r_acc["mean"], r_auc["mean"]),
+  CI_Lower  = c(r_acc["lo"],   r_auc["lo"]),
+  CI_Upper  = c(r_acc["hi"],   r_auc["hi"]),
+  p_value   = c(r_acc["p"],    r_auc["p"]))
 
 print(oos_diff_summary_2v1)
-write.csv(oos_diff_summary_2v1, file = "output/sensitivity/oos_diff_summary_2v1.csv")
+write.csv(oos_diff_summary_2v1, file = "output/sensitivity/oos_diff_summary_2v1_nb.csv")
 
 # Join fold-by-fold results to test difference between prior only and baseline + prior models
 diff_br_2v3 <- cv_prior_br %>%
@@ -1250,19 +1262,19 @@ diff_br_2v3 <- cv_prior_br %>%
          auc_diff = auc_prior - auc_prior_only)
 
 # Paired t-tests across resamples
-test_acc <- t.test(diff_br_2v3$acc_diff)
-test_auc <- t.test(diff_br_2v3$auc_diff)
+r_acc <- nb_test(diff_br_2v3$acc_diff)
+r_auc <- nb_test(diff_br_2v3$auc_diff)
 
 # Summary of differences between out-of-sample estimates by model
 oos_diff_summary_2v3 <- tibble::tibble(
-  Metric = c("Accuracy", "Multiclass AUC"),
-  Mean_Diff = c(mean(diff_br_2v3$acc_diff), mean(diff_br_2v3$auc_diff)),
-  CI_Lower  = c(test_acc$conf.int[1], test_auc$conf.int[1]),
-  CI_Upper  = c(test_acc$conf.int[2], test_auc$conf.int[2]),
-  p_value   = c(test_acc$p.value, test_auc$p.value))
+  Metric    = c("Accuracy", "Multiclass AUC"),
+  Mean_Diff = c(r_acc["mean"], r_auc["mean"]),
+  CI_Lower  = c(r_acc["lo"],   r_auc["lo"]),
+  CI_Upper  = c(r_acc["hi"],   r_auc["hi"]),
+  p_value   = c(r_acc["p"],    r_auc["p"]))
 
 print(oos_diff_summary_2v3)
-write.csv(oos_diff_summary_2v3, file = "output/sensitivity/oos_diff_summary_2v3.csv")
+write.csv(oos_diff_summary_2v3, file = "output/sensitivity/oos_diff_summary_2v3_nb.csv")
 
 # Join fold-by-fold results to test difference between prior only and baseline only models
 diff_br_3v1 <- cv_prior_only_br %>%
@@ -1270,26 +1282,28 @@ diff_br_3v1 <- cv_prior_only_br %>%
   inner_join(cv_baseline_br %>% select(id, id2, acc_base = accuracy, auc_base = roc_auc),
              by = c("id", "id2")) %>%
   mutate(acc_diff = acc_prior_only - acc_base,
-         auc_diff = auc_prior_only - acc_base)
+         auc_diff = auc_prior_only - auc_base)
 
 # Paired t-tests across resamples
-test_acc <- t.test(diff_br_3v1$acc_diff)
-test_auc <- t.test(diff_br_3v1$auc_diff)
+r_acc <- nb_test(diff_br_3v1$acc_diff)
+r_auc <- nb_test(diff_br_3v1$auc_diff)
 
 # Summary of differences between out-of-sample estimates by model
 oos_diff_summary_3v1 <- tibble::tibble(
-  Metric = c("Accuracy", "Multiclass AUC"),
-  Mean_Diff = c(mean(diff_br_3v1$acc_diff), mean(diff_br_3v1$auc_diff)),
-  CI_Lower  = c(test_acc$conf.int[1], test_auc$conf.int[1]),
-  CI_Upper  = c(test_acc$conf.int[2], test_auc$conf.int[2]),
-  p_value   = c(test_acc$p.value, test_auc$p.value))
+  Metric    = c("Accuracy", "Multiclass AUC"),
+  Mean_Diff = c(r_acc["mean"], r_auc["mean"]),
+  CI_Lower  = c(r_acc["lo"],   r_auc["lo"]),
+  CI_Upper  = c(r_acc["hi"],   r_auc["hi"]),
+  p_value   = c(r_acc["p"],    r_auc["p"]))
 
 print(oos_diff_summary_3v1)
-write.csv(oos_diff_summary_3v1, file = "output/sensitivity/oos_diff_summary_3v1.csv")
+write.csv(oos_diff_summary_3v1, file = "output/sensitivity/oos_diff_summary_3v1_nb.csv")
 
 
-# Plots
-cv_accuracy_plot <- bind_rows(cv_baseline_br, cv_prior_br) %>%
+##### Additional Plots: Sina Plots of Cross-Validation Folds ##### 
+
+## Accuracy ##
+cv_accuracy_plot <- bind_rows(cv_baseline_br, cv_prior_br, cv_prior_only_br) %>%
   pivot_longer(cols = c(accuracy, roc_auc), names_to = "metric", values_to = "estimate") %>%  
   filter(metric == "accuracy") %>% 
   ggplot(aes(x = model, y = estimate)) + 
@@ -1299,14 +1313,15 @@ cv_accuracy_plot <- bind_rows(cv_baseline_br, cv_prior_br) %>%
     x = "", 
     y = "Cross-Validated Accuracy", 
     color = "CV Repeat") +
-  scale_x_discrete(labels = c("Model 1: Baseline Only", "Model 2: Baseline + One-Year Prior")) + 
+  scale_x_discrete(labels = c("Model 1: Baseline Only", "Model 2: Baseline + One-Year Prior", "Model 3: Prior Only")) + 
   theme_minimal()
 
 png("output/sensitivity/cv_accuracy_plot.png", width = 2000, height = 1400, res = 300)
 cv_accuracy_plot
 dev.off()
 
-cv_auc_plot <- bind_rows(cv_baseline_br, cv_prior_br) %>%
+## ROC AUC ##
+cv_auc_plot <- bind_rows(cv_baseline_br, cv_prior_br, cv_prior_only_br) %>%
   pivot_longer(cols = c(accuracy, roc_auc), names_to = "metric", values_to = "estimate") %>%  
   filter(metric == "roc_auc") %>% 
   ggplot(aes(x = model, y = estimate)) + 
@@ -1316,7 +1331,7 @@ cv_auc_plot <- bind_rows(cv_baseline_br, cv_prior_br) %>%
     x = "", 
     y = "Cross-Validated Overall Area Under Curve (AUC)", 
     color = "CV Repeat") +
-  scale_x_discrete(labels = c("Model 1: Baseline Only", "Model 2: Baseline + One-Year Prior")) + 
+  scale_x_discrete(labels = c("Model 1: Baseline Only", "Model 2: Baseline + One-Year Prior", "Model 3: Prior Only")) + 
   theme_minimal()
 
 png("output/sensitivity/cv_auc_plot.png", width = 2000, height = 1400, res = 300)
